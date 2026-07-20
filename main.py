@@ -274,10 +274,11 @@ async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Truncate long values
         display_value = value[:50] + '...' if len(value) > 50 else value
         response += f"{i}. **{key}**: {display_value}\n"
-    
-    # Add note if there are more items
-    if len(results) > 20:
-        response += f"\n... and {len(results) - 20} more items."
+        
+        # Limit response length
+        if len(response) > 4000:
+            response += "\n... and more items. Use /stats to see total count."
+            break
     
     await update.message.reply_text(response)
 
@@ -364,6 +365,9 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, (key, value) in enumerate(matches, 1):
         display_value = value[:50] + '...' if len(value) > 50 else value
         response += f"{i}. **{key}**: {display_value}\n"
+        
+        if len(response) > 4000:
+            break
     
     await update.message.reply_text(response)
 
@@ -418,7 +422,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages (non-commands)."""
     user_message = update.message.text
-    user_id = update.effective_user.id
     user_name = update.effective_user.first_name
     
     # Simple greetings
@@ -451,8 +454,18 @@ def main():
     # Initialize database
     init_database()
     
-    # Create the Application
-    app = Application.builder().token(TOKEN).build()
+    # Create the Application - FIXED VERSION
+    try:
+        # Try with connect_kwargs for Python 3.13 compatibility
+        app = Application.builder().token(TOKEN).connect_kwargs(
+            timeout=30,
+            read_timeout=30,
+            write_timeout=30,
+            pool_timeout=30,
+        ).build()
+    except AttributeError:
+        # Fallback for older versions
+        app = Application.builder().token(TOKEN).build()
 
     # Register command handlers
     app.add_handler(CommandHandler("start", start))
